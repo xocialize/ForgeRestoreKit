@@ -14,9 +14,26 @@ does — `GuidedFilterMetal.shared` is `nil` with no device and every caller has
 compiles at runtime from a source string, so there is no `.metal` file and no metallib to package. The
 CPU implementation stays the oracle and parity is tested, not assumed.
 
-⚠️ **The plane API is the reference layer, not the app surface.** These take and return `[Float]` luma.
-An app driving an `MTKView` from `MTLTexture`s wants `CVPixelBuffer`-backed-by-`IOSurface` currency
-end to end; accelerating one stage does not close that, and it is tracked separately.
+**Two surfaces, and it matters which one you use.** The `[Float]`-plane APIs are the reference
+implementation and the parity oracle. An app driving an `MTKView` from `MTLTexture`s should use
+`MetalSharpenPipeline`, which stays GPU-resident from `CVPixelBuffer` in to `CVPixelBuffer` out:
+
+```swift
+let pipeline = MetalSharpenPipeline()          // nil with no Metal device
+let sharpened = pipeline?.process(frame) ?? frame
+```
+
+`process(_:) -> CVPixelBuffer` matches `ImageBridge.FrameProcessor` without importing media-bridge —
+a host that wants the conformance writes `extension MetalSharpenPipeline: FrameProcessor {}`.
+
+⚠️ **Do not mix the two.** Routing an `MTLTexture` app through the plane API gives
+`texture → CPU plane → GPU kernel → CPU plane → texture`, which is **slower than staying on the CPU
+entirely** — the transfers dominate a per-pixel kernel. That is why the pipeline moves the *whole*
+chain (ingest, noise estimate, three bands, coring, gate, Sobel, clamp, write-back), touching the
+buffer exactly twice.
+
+Formats: packed BGRA, and biplanar 4:2:0 — where plane 1 is never bound, so "chroma is never touched"
+is a fact of the layout rather than a discipline. Film grain is still plane-only.
 
 ## Noise-aware sharpening
 
