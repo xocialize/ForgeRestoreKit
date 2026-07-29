@@ -1,5 +1,6 @@
 import XCTest
 import CoreVideo
+import ForgePixelBridge
 import Metal
 @testable import RestoreTier0
 

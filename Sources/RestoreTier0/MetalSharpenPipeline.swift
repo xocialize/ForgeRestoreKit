@@ -22,12 +22,14 @@
 // one. A caller that already knows σ (measure once, then drag a slider) sets `options.noiseSigma` and
 // the first pass collapses to the ingest alone.
 //
-// ⚠️ **Scope: sharpening.** Film grain is still plane-based. Its GPU form is a smaller job — the grain
-// field is a precomputed lookup, and the plan's own note is *"no atomics, no barriers"* — but it is
-// not this change.
+// **Composes with `MetalFilmGrain`** on the same `CVPixelBuffer` currency, so sharpen → grain chains
+// with no readback. Both take and return IOSurface-backed buffers, which the texture cache maps
+// zero-copy. *(This note previously said grain was still plane-only; that stopped being true in
+// v0.5.0.)*
 //
 
 import CoreVideo
+import ForgePixelBridge
 import Foundation
 import Metal
 

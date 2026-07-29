@@ -18,8 +18,16 @@ let package = Package(
     products: [
         .library(name: "RestoreTier0", targets: ["RestoreTier0"]),
     ],
+    dependencies: [
+        // The shared CVPixelBuffer <-> MTLTexture currency. Extracted from this target after a
+        // duplicated copy in a sibling Kit diverged and collided for any consumer importing both.
+        .package(url: "https://github.com/xocialize/ForgePixelBridge.git", from: "0.1.0"),
+    ],
     targets: [
-        .target(name: "RestoreTier0"),
-        .testTarget(name: "RestoreTier0Tests", dependencies: ["RestoreTier0"]),
+        .target(name: "RestoreTier0",
+                dependencies: [.product(name: "ForgePixelBridge", package: "ForgePixelBridge")]),
+        .testTarget(name: "RestoreTier0Tests",
+                    dependencies: ["RestoreTier0",
+                                   .product(name: "ForgePixelBridge", package: "ForgePixelBridge")]),
     ]
 )

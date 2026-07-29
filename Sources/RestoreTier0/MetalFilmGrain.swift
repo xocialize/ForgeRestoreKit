@@ -22,6 +22,7 @@
 //
 
 import CoreVideo
+import ForgePixelBridge
 import Foundation
 import Metal
 
