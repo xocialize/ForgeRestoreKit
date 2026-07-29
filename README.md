@@ -52,6 +52,31 @@ clips**. Heavy grain on near-white or near-black colour desaturates slightly. Th
 additive-delta model, not a defect; the fix, if it ever matters, is to scale the delta by the available
 headroom.
 
+## Deinterlacing
+
+```swift
+let progressive = try Deinterlace.frame(current: frame, previous: prev, next: next,
+                                        width: w, height: h, parity: .top)
+CombDetector.detect(frame, width: w, height: h).isInterlaced   // field-order / progressive check
+```
+
+🔑 **`lossless` is the point, and it is bit-exact.** Retained source field lines are provably the
+original samples, not a reconstruction that scores well. No learned method can offer that, and for
+archival restoration it is not a nice-to-have. Asserted by test.
+
+**Why classical wins here is not a cost argument.** Every learned deinterlacer is trained by dropping
+alternate lines from a *progressive* frame, which makes its two fields **co-temporal** — while real
+50i/60i fields are a field-time apart, and that offset *is* the hard problem. Also absent from every
+training set: field-order errors, blended and orphaned fields, 3:2 telecine, dot crawl, TBC error.
+
+⚠️ **No FFmpeg.** The plan of record suggested linking FFmpeg's LGPL deinterlacers, and its licensing
+analysis is correct — yadif/bwdif/w3fdif/estdif genuinely are LGPL and not GPL-gated. But the binding
+constraint was never the licence: this project's doctrine is *"no FFmpeg, ever, no vendored binaries"*,
+and a dynamic link is a vendored binary. So this is clean-room **edge-directed line averaging with
+motion-adaptive temporal weighting** — a published technique, deliberately not a transcription of
+yadif and not claimed to match it. There is no Apple fallback either: `VTFrameProcessor`'s seven
+configs contain no deinterlacer.
+
 ## Hot and dead pixel correction
 
 A RAW feature Apple does not expose at all. Operates on the **CFA mosaic, before demosaic** — the only
