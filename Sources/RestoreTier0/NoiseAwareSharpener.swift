@@ -51,6 +51,13 @@
 // governs, and the noise floor becomes a floor under it, because you cannot meaningfully sharpen
 // structure finer than the noise you are sitting in.
 //
+// 🔑 **The filter is injected, and a Metal backend ships alongside** — `GuidedFilterMetal.shared`
+// conforms to the same `EdgeAwareFilter`, so
+// `NoiseAwareSharpener(filter: GuidedFilterMetal.shared ?? GuidedFilter())` is the whole integration.
+// ⚠️ Category A's rule is *"no Metal **requirement**"*, not "no Metal": the package must build and run
+// without a GPU, which `init?()` returning nil guarantees. `media-bridge` is the in-tree precedent —
+// category A, and it ships `SSIMULACRA2Metal`.
+//
 // ⚠️ **Chroma is never touched.** Sharpening Cb/Cr buys nothing visible and manufactures colour fringes
 // on every edge. This type takes and returns a luma plane, so that is enforced by the signature rather
 // than by a comment a caller can ignore.

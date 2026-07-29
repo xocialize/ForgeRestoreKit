@@ -7,7 +7,16 @@ Pixel quality at constant resolution — the classical, net-clean half.
 > job vocabulary becomes public API the moment it is tagged, and that naming decision is still open.
 > Nothing here names a job, so nothing here preempts it.
 
-No MLX, no engine, no weights, no downloads, no vendored binaries. macOS 14, no Metal requirement.
+No MLX, no engine, no weights, no downloads, no vendored binaries. macOS 14.
+
+**"No Metal requirement" is not "no Metal".** The package must build and run without a GPU, and it
+does — `GuidedFilterMetal.shared` is `nil` with no device and every caller has a CPU path. The shader
+compiles at runtime from a source string, so there is no `.metal` file and no metallib to package. The
+CPU implementation stays the oracle and parity is tested, not assumed.
+
+⚠️ **The plane API is the reference layer, not the app surface.** These take and return `[Float]` luma.
+An app driving an `MTKView` from `MTLTexture`s wants `CVPixelBuffer`-backed-by-`IOSurface` currency
+end to end; accelerating one stage does not close that, and it is tracked separately.
 
 ## Noise-aware sharpening
 
@@ -15,7 +24,9 @@ Multi-band guided-filter detail enhancement with an Immerkaer noise estimate, co
 variance gate, Sobel edge roll-off and an asymmetric halo clamp.
 
 ```swift
-let (sharpened, report) = NoiseAwareSharpener().sharpen(luma, width: w, height: h)
+// CPU, or the Metal backend when a device is available — same answers, parity-tested.
+let filter = GuidedFilterMetal.shared ?? GuidedFilter()
+let (sharpened, report) = NoiseAwareSharpener(filter: filter).sharpen(luma, width: w, height: h)
 report.noiseSigma            // measured, or the value you supplied
 report.appliedBandDiameters  // bands wider than the picture are skipped
 report.clampedFraction       // how hard the halo clamp had to work
