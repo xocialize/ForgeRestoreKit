@@ -117,6 +117,42 @@ complaint.
 grain is. Amount is a gain on the scaling curve: how strongly that structure shows. Folding them into
 one "strength" slider loses the control that makes grain read as film rather than as noise.
 
+### Match the original grain
+
+The differentiated half: fit a grain model to a denoise **residual**, so re-grain reproduces the film
+the source actually had rather than a preset that resembles it. The input is free — a restore pipeline
+already produces the denoised image.
+
+```swift
+let estimate = try FilmGrainEstimator.fit(original: noisy, denoised: cleaned,
+                                          width: w, height: h)
+let matched  = try FilmGrainSynthesizer(parameters: estimate.parameters)
+estimate.flatBlockFraction   // how much of the frame was usable — a confidence signal
+estimate.residualSigma       // the measured noise level
+```
+
+Three stages: flat-block finding from the gradient covariance eigenvalues (fit where there is no
+structure, or the model learns the *content*), AR coefficients by least squares over the causal
+neighbourhood, and a scaling curve reduced to ≤14 knees.
+
+🔑 **The curve is calibrated by measurement, not derived.** Output amplitude is a product of the
+Gaussian source's spread, `grainScaleShift`, the AR gain, the curve and `grainScalingShift` — a closed
+form through all of that is brittle and would silently break if the Gaussian source were swapped for
+the normative AV1 table. Instead the estimator builds the template, measures its RMS, and solves the
+curve against that.
+
+Measured round trip — strength within 8%, coarseness within 10%:
+
+| source | σ in → out | coarseness in → out |
+|---|---|---|
+| `.gaussian` | 0.0478 → 0.0471 | −0.011 → −0.042 *(both white)* |
+| `.grey` | 0.0406 → 0.0374 | 0.183 → 0.169 |
+| `.silverRich` | 0.0599 → 0.0548 | 0.426 → 0.467 |
+
+⚠️ It does **not** recover the true coefficients, and is not trying to — fitting an AR model to one
+noisy realization is ill-posed. The goal is a perceptual round trip: same strength, same coarseness.
+An all-structure frame throws rather than returning a confident model of the picture.
+
 ### Conformance status — read before claiming AFGS1 compatibility
 
 This is a **structurally-AFGS1 engine, not a verified-conformant one.** For applying grain as an effect
