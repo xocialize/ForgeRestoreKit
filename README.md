@@ -52,6 +52,41 @@ clips**. Heavy grain on near-white or near-black colour desaturates slightly. Th
 additive-delta model, not a defect; the fix, if it ever matters, is to scale the delta by the available
 headroom.
 
+## Hot and dead pixel correction
+
+A RAW feature Apple does not expose at all. Operates on the **CFA mosaic, before demosaic** — the only
+place it is well defined, since after demosaic a hot sensel's error is smeared across a neighbourhood
+and into two other colour channels.
+
+```swift
+let (repaired, report) = try BadPixelCorrection.detectAndCorrect(
+    cfa: mosaic, width: w, height: h,
+    knownBadPixels: darkFrameMap)      // measured sites; corrected unconditionally
+report.defectFraction                  // parts per million on a real sensor
+report.phaseDetectPatternSuspected     // the sites look like a PDAF lattice
+```
+
+Detection is a signed deviation from the same-colour median **normalized by local high-frequency
+energy** — which is the whole detector: an absolute threshold flags every fine texture, while
+normalizing asks *"is this anomalous relative to how busy the neighbourhood already is"* and backs off
+automatically. Repair uses the DNG SDK's `FixIsolatedPixel` rule: four directional estimates, and every
+direction whose gradient is within 1.5× of the best is averaged — so a defect on an edge is repaired
+*along* the edge rather than smeared across it.
+
+### Two false-positive classes, and only one is solvable here
+
+🔴 **A star is geometrically identical to a hot pixel.** No threshold separates them, because from one
+frame there is nothing to separate — a test asserts the detector *does* fire on an isolated bright
+point, so nobody later assumes it got smarter. The answers are a measured bad-pixel list (a dark frame,
+or DNG opcode 5 — that is what `knownBadPixels` is for) or multi-frame agreement.
+
+🟡 **PDAF sensels sit on a lattice**, which *is* detectable. A sparse pattern is flagged and still
+repaired; a dense one throws `phaseDetectPatternDetected` rather than `implausibleDefectDensity`,
+because the latter reads as "lower your threshold" and the right fix is a PDAF mask upstream.
+
+🚨 An implausible density **aborts**. Past a few parts per million this stops being repair and becomes
+a smoothing filter over every isolated detail in the frame.
+
 ## Noise-aware sharpening
 
 Multi-band guided-filter detail enhancement with an Immerkaer noise estimate, coring, a Polesel
