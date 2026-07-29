@@ -9,6 +9,32 @@ Pixel quality at constant resolution — the classical, net-clean half.
 
 No MLX, no engine, no weights, no downloads, no vendored binaries. macOS 14, no Metal requirement.
 
+## Noise-aware sharpening
+
+Multi-band guided-filter detail enhancement with an Immerkaer noise estimate, coring, a Polesel
+variance gate, Sobel edge roll-off and an asymmetric halo clamp.
+
+```swift
+let (sharpened, report) = NoiseAwareSharpener().sharpen(luma, width: w, height: h)
+report.noiseSigma            // measured, or the value you supplied
+report.appliedBandDiameters  // bands wider than the picture are skipped
+report.clampedFraction       // how hard the halo clamp had to work
+```
+
+**Sharpen is DSP; Deblur / Lens Blur / Motion Blur are models.** Ship them in separate sections. The
+competitor conflates them under one panel and that conflation is the documented source of their
+over-sharpening complaints.
+
+**What it enhances is texture, not edges.** A high-amplitude transition has variance far above the
+detail scale, so the guided filter keeps it in the base layer and declines to boost it — that is the
+halo prevention, and it is why this beats an unsharp mask. Chroma is never touched: the signature takes
+a luma plane, so colour fringing is impossible rather than merely discouraged.
+
+**Two knobs, not one.** `detailScale` says what counts as detail (halo control); σ says what counts as
+noise (coring and the variance gate). `ε = max(detailScale, k·σ)²`. Collapsing them — tying ε to the
+noise floor alone, as is sometimes suggested — makes the sharpener a **no-op on clean images**, because
+σ→0 drives ε→0 and the guided filter becomes an identity.
+
 ## Film grain — AFGS1
 
 A deterministic, seedable film-grain synthesizer: a Gaussian draw, a causal auto-regressive filter, a
