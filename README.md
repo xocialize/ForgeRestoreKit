@@ -33,7 +33,24 @@ chain (ingest, noise estimate, three bands, coring, gate, Sobel, clamp, write-ba
 buffer exactly twice.
 
 Formats: packed BGRA, and biplanar 4:2:0 — where plane 1 is never bound, so "chroma is never touched"
-is a fact of the layout rather than a discipline. Film grain is still plane-only.
+is a fact of the layout rather than a discipline.
+
+Grain has the same surface (`MetalFilmGrain`), so the two **chain without a readback** — both take and
+return IOSurface-backed buffers, which the texture cache maps zero-copy:
+
+```swift
+let sharpened = sharpen.process(frame)
+let finished  = grain.process(sharpened)
+```
+
+🚨 **A tiled renderer must pass the tile's true origin** — `grain.applied(to:originX:originY:)`.
+Rendering every tile at `(0, 0)` is the call-site half of the shimmer-on-pan bug, and the synthesizer
+cannot detect it for you. There is a test pinning that the two differ.
+
+⚠️ Grain preserves colour differences by adding an equal delta to R, G and B — **except once a channel
+clips**. Heavy grain on near-white or near-black colour desaturates slightly. That is a property of an
+additive-delta model, not a defect; the fix, if it ever matters, is to scale the delta by the available
+headroom.
 
 ## Noise-aware sharpening
 
