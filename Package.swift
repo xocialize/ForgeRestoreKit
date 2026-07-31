@@ -17,6 +17,9 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "RestoreTier0", targets: ["RestoreTier0"]),
+        // Tier 2: provider PROTOCOLS only — the seam an engine adapter implements. Still net-clean:
+        // depending on this product must never pull MLX, weights, or a 26.x floor (BRIDGE-070).
+        .library(name: "RestoreTier2", targets: ["RestoreTier2"]),
     ],
     dependencies: [
         // The shared CVPixelBuffer <-> MTLTexture currency. Extracted from this target after a
@@ -29,5 +32,8 @@ let package = Package(
         .testTarget(name: "RestoreTier0Tests",
                     dependencies: ["RestoreTier0",
                                    .product(name: "ForgePixelBridge", package: "ForgePixelBridge")]),
+        // ⚠️ Foundation-only on purpose — the net-clean guarantee is the product's entire value.
+        .target(name: "RestoreTier2"),
+        .testTarget(name: "RestoreTier2Tests", dependencies: ["RestoreTier2"]),
     ]
 )
