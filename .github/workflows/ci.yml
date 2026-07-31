@@ -1,0 +1,34 @@
+name: ci
+
+# NET-CLEAN GATE (BRIDGE-071, architecture §6.2 rule 5): this Kit is category A — no MLX, no engine,
+# no vendored binaries, macOS-14 floor. This job builds and tests with the MLX graph ABSENT, so a PR
+# that adds an MLX import (directly or through a new dependency) fails HERE, converting the bucket
+# rule from convention into a gate. Same reason the engine runs an offline contract build.
+#
+# The dependency closure must stay public: if SwiftPM ever fails with "could not read Username for
+# 'https://github.com'", someone added a private dependency — that is the defect, not the network.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Assert MLX-absent graph
+        run: |
+          swift package resolve
+          if grep -riE '"mlx-swift"|mlx-engine-swift' Package.resolved; then
+            echo "::error::MLX entered the dependency graph of a net-clean Kit"; exit 1
+          fi
+      - name: Build
+        run: swift build -v
+      - name: Test
+        run: swift test
