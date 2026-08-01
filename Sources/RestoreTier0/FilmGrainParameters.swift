@@ -88,7 +88,7 @@ public struct FilmGrainParameters: Sendable {
                 scalingPoints: [ScalingPoint] = [],
                 overlap: Bool = true,
                 amount: Double = 1.0,
-                gaussianSequence: [Int16] = AFGS1.substituteGaussianSequence) {
+                gaussianSequence: [Int16] = AFGS1.gaussianSequence) {
         self.seed = seed
         self.arCoefficientLag = arCoefficientLag
         self.arCoefficients = arCoefficients
